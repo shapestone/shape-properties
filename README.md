@@ -7,7 +7,6 @@
 ![Go Version](https://img.shields.io/github/go-mod/go-version/shapestone/shape-properties)
 ![Latest Release](https://img.shields.io/github/v/release/shapestone/shape-properties)
 [![GoDoc](https://pkg.go.dev/badge/github.com/shapestone/shape-properties.svg)](https://pkg.go.dev/github.com/shapestone/shape-properties)
-
 [![CodeQL](https://github.com/shapestone/shape-properties/actions/workflows/codeql.yml/badge.svg)](https://github.com/shapestone/shape-properties/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shapestone/shape-properties/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shapestone/shape-properties)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-brightgreen)](SECURITY.md)
