@@ -35,7 +35,7 @@ import (
 //	    log.Fatal(err)
 //	}
 func Validate(input string) error {
-	p := fastparser.NewParser([]byte(input))
+	p := fastparser.NewParserFromString(input)
 	return p.Validate()
 }
 
@@ -66,7 +66,7 @@ func ValidateReader(r io.Reader) error {
 //	}
 //	fmt.Println(props["host"]) // localhost
 func Load(input string) (map[string]string, error) {
-	p := fastparser.NewParser([]byte(input))
+	p := fastparser.NewParserFromString(input)
 	return p.Parse()
 }
 

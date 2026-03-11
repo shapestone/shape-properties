@@ -110,7 +110,7 @@ For format conversion or tree manipulation, use `Parse()`.
 
 ```go
 // From string
-props, _ := properties.Load(`host=localhost\nport=8080`)
+props, _ := properties.Load("host=localhost\nport=8080")
 
 // From file
 file, _ := os.Open("config.properties")
@@ -206,6 +206,28 @@ make fuzz
 
 # Coverage report
 make coverage
+```
+
+## Thread Safety
+
+All public functions are safe for concurrent use:
+
+- **`Load`, `Validate`, `Parse`** and their variants each create a new parser instance per call — no shared state.
+- **`Render`, `RenderMap`** use a `sync.Pool` of `bytes.Buffer` instances for zero-contention buffer reuse.
+- No package-level mutable state exists outside the buffer pool, which is itself goroutine-safe.
+
+```go
+// Safe to call concurrently from multiple goroutines
+var wg sync.WaitGroup
+for _, cfg := range configs {
+    wg.Add(1)
+    go func(input string) {
+        defer wg.Done()
+        props, _ := properties.Load(input)
+        _ = props
+    }(cfg)
+}
+wg.Wait()
 ```
 
 ## Dependencies

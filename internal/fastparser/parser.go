@@ -17,22 +17,20 @@ import (
 
 // Parser implements a high-performance properties parser that builds map[string]string directly.
 type Parser struct {
-	data     []byte
-	pos      int
-	length   int
-	line     int
-	seenKeys map[string]struct{} // For duplicate detection
+	data   string
+	pos    int
+	length int
+	line   int
 }
 
 // NewParser creates a new fast parser for the given data.
 func NewParser(data []byte) *Parser {
-	return &Parser{
-		data:     data,
-		pos:      0,
-		length:   len(data),
-		line:     1,
-		seenKeys: make(map[string]struct{}),
-	}
+	return &Parser{data: string(data), length: len(data), line: 1}
+}
+
+// NewParserFromString creates a new fast parser from a string (zero-copy).
+func NewParserFromString(data string) *Parser {
+	return &Parser{data: data, length: len(data), line: 1}
 }
 
 // NewParserFromReader creates a new fast parser from an io.Reader.
@@ -46,7 +44,7 @@ func NewParserFromReader(r io.Reader) (*Parser, error) {
 
 // Parse parses the properties data and returns map[string]string.
 func (p *Parser) Parse() (map[string]string, error) {
-	result := make(map[string]string)
+	result := make(map[string]string, p.length/20+1)
 
 	for p.pos < p.length {
 		// Skip whitespace at start of line
@@ -86,10 +84,9 @@ func (p *Parser) Parse() (map[string]string, error) {
 		}
 
 		// Check for duplicate keys
-		if _, exists := p.seenKeys[key]; exists {
+		if _, exists := result[key]; exists {
 			return nil, fmt.Errorf("duplicate key %q at line %d", key, p.line)
 		}
-		p.seenKeys[key] = struct{}{}
 		result[key] = value
 	}
 
@@ -162,7 +159,7 @@ func (p *Parser) parseKey() (string, error) {
 		return "", fmt.Errorf("empty key at line %d", p.line)
 	}
 
-	return string(p.data[start:p.pos]), nil
+	return p.data[start:p.pos], nil
 }
 
 // parseValue parses the value until end of line.
@@ -186,29 +183,27 @@ func (p *Parser) parseValue() (string, error) {
 		p.pos++
 	}
 
-	// Get the raw value
-	value := p.data[start:p.pos]
-
 	// Trim trailing whitespace
-	end := len(value)
-	for end > 0 && (value[end-1] == ' ' || value[end-1] == '\t') {
+	end := p.pos
+	for end > start && (p.data[end-1] == ' ' || p.data[end-1] == '\t') {
 		end--
 	}
 
 	// Skip the newline
 	if p.pos < p.length {
-		if p.data[p.pos] == '\r' {
+		switch p.data[p.pos] {
+		case '\r':
 			p.pos++
 			if p.pos < p.length && p.data[p.pos] == '\n' {
 				p.pos++
 			}
-		} else if p.data[p.pos] == '\n' {
+		case '\n':
 			p.pos++
 		}
 		p.line++
 	}
 
-	return string(value[:end]), nil
+	return p.data[start:end], nil
 }
 
 // skipWhitespace skips spaces and tabs (not newlines).

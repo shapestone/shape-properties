@@ -1,12 +1,31 @@
 package properties
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
-	"strings"
+	"sync"
 
 	"github.com/shapestone/shape-core/pkg/ast"
 )
+
+// renderPool pools bytes.Buffer instances to avoid repeated allocations in
+// high-throughput rendering scenarios (e.g. config generation loops).
+var renderPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 512))
+	},
+}
+
+// putBuffer returns a buffer to the pool, discarding oversized buffers to
+// prevent the pool from holding onto large allocations permanently.
+func putBuffer(buf *bytes.Buffer) {
+	if buf.Cap() > 64*1024 {
+		return
+	}
+	buf.Reset()
+	renderPool.Put(buf)
+}
 
 // Render converts an AST ObjectNode back to properties format text.
 // Keys are sorted alphabetically for deterministic output.
@@ -34,7 +53,9 @@ func Render(node ast.SchemaNode) (string, error) {
 	}
 	sort.Strings(keys)
 
-	var sb strings.Builder
+	buf := renderPool.Get().(*bytes.Buffer)
+	defer putBuffer(buf)
+
 	for _, key := range keys {
 		valueNode := props[key]
 
@@ -52,13 +73,13 @@ func Render(node ast.SchemaNode) (string, error) {
 			value = fmt.Sprintf("%v", lit.Value())
 		}
 
-		sb.WriteString(key)
-		sb.WriteByte('=')
-		sb.WriteString(value)
-		sb.WriteByte('\n')
+		buf.WriteString(key)
+		buf.WriteByte('=')
+		buf.WriteString(value)
+		buf.WriteByte('\n')
 	}
 
-	return sb.String(), nil
+	return buf.String(), nil
 }
 
 // RenderMap converts a map[string]string to properties format text.
@@ -91,13 +112,15 @@ func RenderMap(m map[string]string) (string, error) {
 	}
 	sort.Strings(keys)
 
-	var sb strings.Builder
+	buf := renderPool.Get().(*bytes.Buffer)
+	defer putBuffer(buf)
+
 	for _, key := range keys {
-		sb.WriteString(key)
-		sb.WriteByte('=')
-		sb.WriteString(m[key])
-		sb.WriteByte('\n')
+		buf.WriteString(key)
+		buf.WriteByte('=')
+		buf.WriteString(m[key])
+		buf.WriteByte('\n')
 	}
 
-	return sb.String(), nil
+	return buf.String(), nil
 }

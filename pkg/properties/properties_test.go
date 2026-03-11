@@ -312,3 +312,122 @@ log-level=info`
 		t.Errorf("round trip mismatch:\ngot:  %q\nwant: %q", text2, text)
 	}
 }
+
+// ============================================================================
+// E2E Tests
+// ============================================================================
+
+func TestLoadParseParity(t *testing.T) {
+	input := "# Config\nhost=localhost\nport=8080\ndb.name=myapp\nlog-level=info"
+
+	fast, err := Load(input)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	node, err := Parse(input)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	slow, err := NodeToMap(node)
+	if err != nil {
+		t.Fatalf("NodeToMap() error = %v", err)
+	}
+
+	if len(fast) != len(slow) {
+		t.Fatalf("Load() returned %d keys, Parse()+NodeToMap() returned %d", len(fast), len(slow))
+	}
+
+	for k, v := range fast {
+		if slow[k] != v {
+			t.Errorf("key %q: Load()=%q, Parse()+NodeToMap()=%q", k, v, slow[k])
+		}
+	}
+}
+
+func TestCRLFAtPublicAPI(t *testing.T) {
+	input := "host=localhost\r\nport=8080\r\ndebug=true"
+
+	props, err := Load(input)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(props) != 3 {
+		t.Errorf("expected 3 properties, got %d", len(props))
+	}
+	if props["host"] != "localhost" {
+		t.Errorf("host = %q, want 'localhost'", props["host"])
+	}
+	if props["port"] != "8080" {
+		t.Errorf("port = %q, want '8080'", props["port"])
+	}
+	if props["debug"] != "true" {
+		t.Errorf("debug = %q, want 'true'", props["debug"])
+	}
+
+	if err := Validate(input); err != nil {
+		t.Errorf("Validate() error = %v", err)
+	}
+
+	if _, err := Parse(input); err != nil {
+		t.Errorf("Parse() error = %v", err)
+	}
+}
+
+func TestErrorConsistency(t *testing.T) {
+	cases := []string{
+		"host=a\nhost=b",  // duplicate key
+		"host localhost",  // missing =
+		"123invalid=value", // invalid key start
+	}
+
+	for _, input := range cases {
+		_, errLoad := Load(input)
+		_, errParse := Parse(input)
+
+		if errLoad == nil {
+			t.Errorf("Load(%q) expected error, got nil", input)
+		}
+		if errParse == nil {
+			t.Errorf("Parse(%q) expected error, got nil", input)
+		}
+	}
+}
+
+func TestFullWorkflow(t *testing.T) {
+	original := "host=localhost\nport=8080"
+
+	props, err := Load(original)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	props["region"] = "us-east-1"
+
+	node, err := MapToNode(props)
+	if err != nil {
+		t.Fatalf("MapToNode() error = %v", err)
+	}
+
+	text, err := Render(node)
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	result, err := Load(text)
+	if err != nil {
+		t.Fatalf("Load(rendered) error = %v", err)
+	}
+
+	if result["host"] != "localhost" {
+		t.Errorf("host = %q, want 'localhost'", result["host"])
+	}
+	if result["port"] != "8080" {
+		t.Errorf("port = %q, want '8080'", result["port"])
+	}
+	if result["region"] != "us-east-1" {
+		t.Errorf("region = %q, want 'us-east-1'", result["region"])
+	}
+}
