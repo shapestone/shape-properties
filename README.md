@@ -1,8 +1,22 @@
 # shape-properties
 
-A high-performance parser for the Simple Properties Configuration Format, implementing
-a dual-path architecture for optimal performance in both configuration loading and
-tree manipulation scenarios.
+![Build Status](https://github.com/shapestone/shape-properties/actions/workflows/ci.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/shapestone/shape-properties)](https://goreportcard.com/report/github.com/shapestone/shape-properties)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![codecov](https://codecov.io/gh/shapestone/shape-properties/branch/main/graph/badge.svg)](https://codecov.io/gh/shapestone/shape-properties)
+![Go Version](https://img.shields.io/github/go-mod/go-version/shapestone/shape-properties)
+![Latest Release](https://img.shields.io/github/v/release/shapestone/shape-properties)
+[![GoDoc](https://pkg.go.dev/badge/github.com/shapestone/shape-properties.svg)](https://pkg.go.dev/github.com/shapestone/shape-properties)
+
+[![CodeQL](https://github.com/shapestone/shape-properties/actions/workflows/codeql.yml/badge.svg)](https://github.com/shapestone/shape-properties/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shapestone/shape-properties/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shapestone/shape-properties)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-brightgreen)](SECURITY.md)
+
+**Repository:** github.com/shapestone/shape-properties
+
+A Simple Properties Configuration Format parser for the [Shape Parser™](https://github.com/shapestone/shape) ecosystem.
+
+Parses `.properties` configuration files into Shape Parser's™ unified AST representation.
 
 ## Installation
 
