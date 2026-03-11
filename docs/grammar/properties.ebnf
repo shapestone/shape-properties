@@ -1,0 +1,70 @@
+(* Simple Properties Configuration Format - EBNF Grammar *)
+(* Based on properties-format.md specification *)
+(* Uses ISO-style EBNF notation *)
+
+(* Top-level structure *)
+file        = { line } ;
+
+line        = ws
+            | comment
+            | assignment ;
+
+(* Property assignment *)
+assignment  = ws key ws "=" ws value ws ;
+
+(* Comments *)
+comment     = ws "#" { character } ;
+
+(* Keys: must start with letter or underscore *)
+key         = key-start { key-char } ;
+
+key-start   = letter | "_" ;
+key-char    = letter | digit | "_" | "-" | "." ;
+
+(* Values: everything after = until newline *)
+value       = { value-char } ;
+
+value-char  = character - line-terminator ;
+
+(* Whitespace: space and horizontal tab only *)
+ws          = { " " | "\t" } ;
+
+(* Character sets *)
+letter      = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
+            | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T"
+            | "U" | "V" | "W" | "X" | "Y" | "Z"
+            | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
+            | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
+            | "u" | "v" | "w" | "x" | "y" | "z" ;
+
+digit       = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+(* Line terminator: LF or CRLF *)
+line-terminator = "\n" | "\r\n" ;
+
+(* Character: any UTF-8 character except control chars (except TAB) and NUL *)
+character   = ? UTF-8 character except control characters (except TAB) and NUL ? ;
+
+(* ============================================================================
+   Token Types
+   ============================================================================
+
+   KEY      = key-start { key-char }     ; Property key
+   EQUALS   = "="                        ; Assignment separator
+   VALUE    = { value-char }             ; Property value
+   COMMENT  = "#" { character }          ; Comment (# to end of line)
+   NEWLINE  = "\n" | "\r\n"              ; Line terminator
+   EOF      = ? end of input ?           ; End of file
+
+   ============================================================================
+   Error Conditions (per specification §4)
+   ============================================================================
+
+   1. Missing "=" separator
+   2. Empty key (zero-length key)
+   3. Invalid key characters (not matching key pattern)
+   4. Duplicate keys
+   5. Control characters other than TAB in keys or values
+   6. NUL byte (0x00) anywhere in input
+
+   ============================================================================ *)
