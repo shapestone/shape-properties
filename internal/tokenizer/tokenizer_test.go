@@ -1,6 +1,7 @@
 package tokenizer
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -313,4 +314,72 @@ func TestTokenizer_PathValue(t *testing.T) {
 	if token.Value != "/var/log/app" {
 		t.Errorf("expected '/var/log/app', got '%s'", token.Value)
 	}
+}
+
+func TestTokenizer_IsEOF(t *testing.T) {
+	tok := NewTokenizer("")
+	token := tok.NextToken()
+	if !token.IsEOF() {
+		t.Errorf("expected IsEOF() = true, got false (kind=%s)", token.Kind)
+	}
+
+	tok2 := NewTokenizer("host=localhost")
+	keyToken := tok2.NextToken()
+	if keyToken.IsEOF() {
+		t.Error("expected IsEOF() = false for KEY token")
+	}
+}
+
+func TestTokenizer_Position(t *testing.T) {
+	tok := NewTokenizer("host=localhost")
+	line, col, offset := tok.Position()
+	if line != 1 || col != 1 || offset != 0 {
+		t.Errorf("initial position: got line=%d col=%d offset=%d, want 1 1 0", line, col, offset)
+	}
+
+	tok.NextToken() // consume KEY "host"
+	line, _, offset = tok.Position()
+	if line != 1 || offset != 4 {
+		t.Errorf("after KEY: got line=%d offset=%d, want line=1 offset=4", line, offset)
+	}
+}
+
+func TestTokenizer_BareCarriageReturn(t *testing.T) {
+	// Bare \r at end of input triggers peek() returning 0 (EOF) after advance
+	tok := NewTokenizer("\r")
+	token := tok.NextToken()
+	if token.Kind != TokenNewline {
+		t.Errorf("expected NEWLINE for bare \\r, got %s", token.Kind)
+	}
+	if token.Value != "\r" {
+		t.Errorf("expected value '\\r', got %q", token.Value)
+	}
+
+	token = tok.NextToken()
+	if token.Kind != TokenEOF {
+		t.Errorf("expected EOF after bare \\r, got %s", token.Kind)
+	}
+}
+
+func TestTokenizer_AdvanceAtEOF(t *testing.T) {
+	// advance() has a guard for pos >= len(input); call it directly at EOF
+	tok := NewTokenizer("")
+	tok.advance() // should not panic
+	tok.advance() // should not panic
+	if tok.pos != 0 {
+		t.Errorf("expected pos=0 after advance on empty input, got %d", tok.pos)
+	}
+}
+
+func TestTokenizer_FromReaderError(t *testing.T) {
+	_, err := NewTokenizerFromReader(&tokErrReader{})
+	if err == nil {
+		t.Fatal("expected error from failing reader")
+	}
+}
+
+type tokErrReader struct{}
+
+func (e *tokErrReader) Read(p []byte) (int, error) {
+	return 0, errors.New("read failed")
 }

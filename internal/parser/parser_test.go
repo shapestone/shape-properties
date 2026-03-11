@@ -376,3 +376,11 @@ func TestParser_TabInValue(t *testing.T) {
 		t.Errorf("expected 'value\\twith\\ttabs', got %q", prop.Value())
 	}
 }
+
+func TestParser_ValidateKeyEmpty(t *testing.T) {
+	// validateKey is package-private; call directly to cover the empty key branch
+	err := validateKey("")
+	if err == nil {
+		t.Error("expected error for empty key")
+	}
+}

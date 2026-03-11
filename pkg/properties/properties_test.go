@@ -1,6 +1,7 @@
 package properties
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -396,6 +397,13 @@ func TestErrorConsistency(t *testing.T) {
 	}
 }
 
+// errReader always returns an error on Read.
+type errReader struct{}
+
+func (e *errReader) Read(p []byte) (int, error) {
+	return 0, errors.New("read failed")
+}
+
 func TestFullWorkflow(t *testing.T) {
 	original := "host=localhost\nport=8080"
 
@@ -429,5 +437,140 @@ func TestFullWorkflow(t *testing.T) {
 	}
 	if result["region"] != "us-east-1" {
 		t.Errorf("region = %q, want 'us-east-1'", result["region"])
+	}
+}
+
+// ============================================================================
+// Coverage Gap Tests
+// ============================================================================
+
+// Reader error paths
+
+func TestValidateReaderError(t *testing.T) {
+	err := ValidateReader(&errReader{})
+	if err == nil {
+		t.Fatal("expected error from failing reader")
+	}
+}
+
+func TestLoadReaderError(t *testing.T) {
+	_, err := LoadReader(&errReader{})
+	if err == nil {
+		t.Fatal("expected error from failing reader")
+	}
+}
+
+func TestParseReaderError(t *testing.T) {
+	_, err := ParseReader(&errReader{})
+	if err == nil {
+		t.Fatal("expected error from failing reader")
+	}
+}
+
+// NodeToMap edge cases
+
+func TestNodeToMapNonObjectNode(t *testing.T) {
+	pos := ast.NewPosition(0, 1, 1)
+	lit := ast.NewLiteralNode("value", pos)
+	_, err := NodeToMap(lit)
+	if err == nil {
+		t.Error("expected error when passing non-ObjectNode to NodeToMap")
+	}
+}
+
+func TestNodeToMapNonLiteralValue(t *testing.T) {
+	pos := ast.NewPosition(0, 1, 1)
+	// ObjectNode as a value — not a LiteralNode
+	inner := ast.NewObjectNode(map[string]ast.SchemaNode{}, pos)
+	outer := ast.NewObjectNode(map[string]ast.SchemaNode{"key": inner}, pos)
+	_, err := NodeToMap(outer)
+	if err == nil {
+		t.Error("expected error when ObjectNode value is not a LiteralNode")
+	}
+}
+
+func TestNodeToMapNonStringLiteral(t *testing.T) {
+	pos := ast.NewPosition(0, 1, 1)
+	// LiteralNode with integer value — triggers the non-string conversion path
+	lit := ast.NewLiteralNode(42, pos)
+	obj := ast.NewObjectNode(map[string]ast.SchemaNode{"count": lit}, pos)
+	m, err := NodeToMap(obj)
+	if err != nil {
+		t.Fatalf("NodeToMap() error = %v", err)
+	}
+	if m["count"] != "42" {
+		t.Errorf("count = %q, want '42'", m["count"])
+	}
+}
+
+// MapToNode edge cases (validateKey, validateValue)
+
+func TestMapToNodeEmptyKey(t *testing.T) {
+	_, err := MapToNode(map[string]string{"": "value"})
+	if err == nil {
+		t.Error("expected error for empty key")
+	}
+}
+
+func TestMapToNodeControlCharValue(t *testing.T) {
+	_, err := MapToNode(map[string]string{"key": "val\x01ue"})
+	if err == nil {
+		t.Error("expected error for control character in value")
+	}
+}
+
+func TestMapToNodeNULValue(t *testing.T) {
+	_, err := MapToNode(map[string]string{"key": "val\x00ue"})
+	if err == nil {
+		t.Error("expected error for NUL byte in value")
+	}
+}
+
+// Render edge cases
+
+func TestRenderNonObjectNode(t *testing.T) {
+	pos := ast.NewPosition(0, 1, 1)
+	lit := ast.NewLiteralNode("value", pos)
+	_, err := Render(lit)
+	if err == nil {
+		t.Error("expected error when passing non-ObjectNode to Render")
+	}
+}
+
+func TestRenderNonLiteralValue(t *testing.T) {
+	pos := ast.NewPosition(0, 1, 1)
+	inner := ast.NewObjectNode(map[string]ast.SchemaNode{}, pos)
+	outer := ast.NewObjectNode(map[string]ast.SchemaNode{"key": inner}, pos)
+	_, err := Render(outer)
+	if err == nil {
+		t.Error("expected error when ObjectNode value is not a LiteralNode")
+	}
+}
+
+func TestRenderMapInvalidKey(t *testing.T) {
+	_, err := RenderMap(map[string]string{"123bad": "value"})
+	if err == nil {
+		t.Error("expected error for invalid key in RenderMap")
+	}
+}
+
+func TestRenderMapInvalidValue(t *testing.T) {
+	_, err := RenderMap(map[string]string{"key": "val\x01ue"})
+	if err == nil {
+		t.Error("expected error for control character in RenderMap value")
+	}
+}
+
+func TestRenderMapLargeBuffer(t *testing.T) {
+	// Produce >64KB output to trigger the large-buffer discard path in putBuffer
+	m := map[string]string{
+		"key": strings.Repeat("x", 65537),
+	}
+	text, err := RenderMap(m)
+	if err != nil {
+		t.Fatalf("RenderMap() error = %v", err)
+	}
+	if !strings.HasPrefix(text, "key=") {
+		t.Errorf("unexpected output prefix: %q", text[:10])
 	}
 }

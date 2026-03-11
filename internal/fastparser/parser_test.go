@@ -1,6 +1,7 @@
 package fastparser
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -372,3 +373,59 @@ func TestFastParser_ValidateError(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 }
+
+func TestFastParser_NewParserFromString(t *testing.T) {
+	p := NewParserFromString("host=localhost\nport=8080")
+	result, err := p.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Errorf("expected 2 properties, got %d", len(result))
+	}
+	if result["host"] != "localhost" || result["port"] != "8080" {
+		t.Errorf("unexpected values: %v", result)
+	}
+}
+
+func TestFastParser_NewParserFromReaderError(t *testing.T) {
+	_, err := NewParserFromReader(&errReader{})
+	if err == nil {
+		t.Fatal("expected error from failing reader")
+	}
+}
+
+func TestFastParser_CommentCRLF(t *testing.T) {
+	// Comment with CRLF ending exercises the \r branch in skipToEndOfLine
+	input := []byte("# comment\r\nhost=localhost")
+	p := NewParser(input)
+	result, err := p.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if result["host"] != "localhost" {
+		t.Errorf("expected 'localhost', got %q", result["host"])
+	}
+}
+
+func TestFastParser_CommentCROnly(t *testing.T) {
+	// Comment with bare CR ending (no following \n)
+	input := []byte("# comment\rhost=localhost")
+	p := NewParser(input)
+	result, err := p.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if result["host"] != "localhost" {
+		t.Errorf("expected 'localhost', got %q", result["host"])
+	}
+}
+
+// errReader always returns an error on Read.
+type errReader struct{}
+
+func (e *errReader) Read(p []byte) (int, error) {
+	return 0, errReadFailed
+}
+
+var errReadFailed = errors.New("read failed")
