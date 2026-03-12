@@ -1,3 +1,7 @@
+// Package tokenizer implements the lexical scanner for the .properties
+// configuration file format. It reads a stream of characters and produces
+// a sequence of typed tokens (keys, values, comments, whitespace) consumed
+// by the parser packages.
 package tokenizer
 
 import (
