@@ -13,9 +13,15 @@
 
 **Repository:** github.com/shapestone/shape-properties
 
-A Simple Properties Configuration Format parser for the [Shape Parser™](https://github.com/shapestone/shape) ecosystem.
+> Parse `.properties` configuration files in Go — fast, safe, and concurrent.
 
-Parses `.properties` configuration files into Shape Parser's™ unified AST representation.
+A Go library for reading, validating, and generating Java-style `.properties` configuration files (key=value pairs). It is part of the [Shape Parser™](https://github.com/shapestone/shape) ecosystem and produces a unified Abstract Syntax Tree (AST) representation that can be traversed, converted, or rendered back to text.
+
+## Who It's For
+
+- **Go developers** who need to load `app.properties` or `config.properties` files at application startup
+- **Parser and tooling authors** who want a well-tested `.properties` format library with full AST access
+- Anyone building Go configuration file readers, format converters, or round-trip parsers
 
 ## Installation
 
@@ -28,7 +34,7 @@ go get github.com/shapestone/shape-properties
 ```go
 import "github.com/shapestone/shape-properties/pkg/properties"
 
-// Load configuration (fast path - recommended for config loading)
+// Load configuration into map[string]string (fast path — recommended for config loading)
 props, err := properties.Load(`
 host=localhost
 port=8080
@@ -39,9 +45,25 @@ if err != nil {
 }
 fmt.Println(props["host"]) // localhost
 
-// Or parse to AST (for tree manipulation)
+// Or parse to Abstract Syntax Tree (AST) for tree manipulation
 node, err := properties.Parse(`host=localhost`)
 ```
+
+Run common tasks with `make`:
+
+```bash
+make test      # run tests with race detection
+make bench     # run performance benchmarks
+make coverage  # generate HTML coverage report
+```
+
+## Use Cases
+
+- Loading `app.properties` or `config.properties` files at startup
+- Validating user-supplied configuration files before applying them
+- Converting `.properties` files to JSON or other formats
+- Writing tools in the Shape Parser ecosystem
+- Round-tripping: parse → modify Abstract Syntax Tree (AST) → render back to `.properties`
 
 ## Format Specification
 
@@ -93,7 +115,7 @@ props := properties.MustLoad(input)
 Use these functions for tree manipulation and format conversion:
 
 ```go
-// Parse to AST
+// Parse to Abstract Syntax Tree (AST)
 node, err := properties.Parse(input)
 node, err := properties.ParseReader(reader)
 node := properties.MustParse(input)
@@ -112,7 +134,7 @@ text, err := properties.RenderMap(map[string]string{"host": "localhost"})
 | Path | Returns | Use Case | Performance |
 |------|---------|----------|-------------|
 | Fast | `map[string]string` | Config loading, validation | Baseline |
-| AST | `ast.SchemaNode` | Tree manipulation, conversion | 5-10x slower |
+| AST  | `ast.SchemaNode`   | Tree manipulation, conversion | 5-10x slower |
 
 For configuration loading (the common case), use `Load()` or `Validate()`.
 For format conversion or tree manipulation, use `Parse()`.
@@ -159,7 +181,7 @@ os.WriteFile("config.properties", []byte(text), 0644)
 ### AST Manipulation
 
 ```go
-// Parse to AST
+// Parse to Abstract Syntax Tree (AST)
 node, _ := properties.Parse(input)
 obj := node.(*ast.ObjectNode)
 
@@ -169,7 +191,7 @@ for key, valueNode := range obj.Properties() {
     fmt.Printf("%s = %v\n", key, lit.Value())
 }
 
-// Render back to text
+// Render back to .properties text
 text, _ := properties.Render(node)
 ```
 
@@ -190,29 +212,50 @@ _, err := properties.Load("key=value\x00more")
 
 ## Benchmarks
 
-Run benchmarks:
-
-```bash
-make bench
-```
-
 Expected performance on typical hardware:
 
 | Operation | Small (10 props) | Medium (500 props) | Large (10K props) |
 |-----------|------------------|--------------------|--------------------|
-| Load | ~5 µs | ~200 µs | ~4 ms |
-| Parse | ~25 µs | ~1 ms | ~20 ms |
+| Load      | ~5 µs            | ~200 µs            | ~4 ms              |
+| Parse     | ~25 µs           | ~1 ms              | ~20 ms             |
 
 Fast path is 5-10x faster than AST path.
+
+## Make Targets
+
+| Category    | Target                   | Description                                  |
+|-------------|--------------------------|----------------------------------------------|
+| Core        | `all`                    | Format, lint, and test                       |
+| Core        | `test`                   | Run tests with race detection                |
+| Core        | `check`                  | Lint and vet                                 |
+| Core        | `lint`                   | Run golangci-lint                            |
+| Core        | `build`                  | Build all packages                           |
+| Core        | `fmt`                    | Format source code                           |
+| Core        | `clean`                  | Remove build artifacts                       |
+| Coverage    | `coverage`               | Generate HTML coverage report                |
+| Benchmarks  | `bench`                  | Run all benchmarks                           |
+| Benchmarks  | `bench-small`            | Benchmark small inputs (10 props)            |
+| Benchmarks  | `bench-medium`           | Benchmark medium inputs (500 props)          |
+| Benchmarks  | `bench-large`            | Benchmark large inputs (10K props)           |
+| Benchmarks  | `bench-report`           | Generate benchmark report                    |
+| Benchmarks  | `bench-compare`          | Compare benchmarks against baseline          |
+| Benchmarks  | `bench-profile`          | Run benchmarks with CPU/mem profiling        |
+| Benchmarks  | `performance-report`     | Full performance summary                     |
+| Benchmarks  | `bench-history`          | Show benchmark history                       |
+| Benchmarks  | `bench-compare-history`  | Compare benchmark history entries            |
+| Grammar     | `grammar-verify`         | Verify grammar definition                    |
+| Grammar     | `grammar-test`           | Run grammar tests                            |
+| Fuzz        | `fuzz`                   | Run all fuzz targets                         |
+| Fuzz        | `fuzz-parser`            | Fuzz the AST parser                          |
+| Fuzz        | `fuzz-fast`              | Fuzz the fast parser                         |
+| Fuzz        | `fuzz-tokenizer`         | Fuzz the tokenizer                           |
+| Composite   | `test-all`               | Run tests, benchmarks, and fuzz (short)      |
 
 ## Testing
 
 ```bash
-# Run all tests
+# Run all tests with race detection
 make test
-
-# Run with race detection
-go test -race ./...
 
 # Fuzz testing
 make fuzz
@@ -243,9 +286,9 @@ for _, cfg := range configs {
 wg.Wait()
 ```
 
-## Dependencies
+## Related Projects
 
-- [shape-core](https://github.com/shapestone/shape-core) - AST types (`ast.ObjectNode`, `ast.LiteralNode`)
+- [shape-core](https://github.com/shapestone/shape-core) — Shared Abstract Syntax Tree (AST) types used across the Shape Parser ecosystem (`ast.ObjectNode`, `ast.LiteralNode`)
 
 ## License
 
